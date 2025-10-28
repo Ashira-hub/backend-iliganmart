@@ -2,9 +2,14 @@ const express = require('express');
 const cors = require('cors');
 const { pool, createUsersTable } = require('./db');
 const bcrypt = require('bcryptjs');
- 
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Ensure fetch is available (Node < 18 compatibility)
+const fetch = (global && global.fetch)
+  ? global.fetch
+  : ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
 
 // Middleware
 app.use(cors());
@@ -28,6 +33,38 @@ app.get('/api/admin/users', async (req, res) => {
   } catch (error) {
     console.error('Admin list users error:', error);
     res.status(500).json({ error: 'Failed to list users', details: error.message });
+  }
+});
+
+// Get orders for seller by email
+app.get('/api/seller/orders', async (req, res) => {
+  try {
+    const email = (req.query.email || '').toString().trim().toLowerCase();
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const userRes = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const userId = userRes.rows[0].id;
+
+    const list = await pool.query(
+      `SELECT o.id,
+              o.product_id,
+              p.name AS product_name,
+              o.buyer_email,
+              o.quantity,
+              o.total_price,
+              o.created_at
+       FROM orders o
+       JOIN products p ON p.id = o.product_id
+       WHERE p.user_id = $1
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
+
+    res.json({ success: true, orders: list.rows });
+  } catch (error) {
+    console.error('Get seller orders error:', error);
+    res.status(500).json({ error: 'Get seller orders failed', details: error.message });
   }
 });
 
