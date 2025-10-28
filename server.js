@@ -447,5 +447,5 @@ app.get('/api/user/:email', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 IliganMart API running on port ${PORT}`);
-  console.log(`📡 Database: ${process.env.DB_HOST || 'Not configured'}`);
+  console.log(`📡 Database: ${process.env.DB_HOST || process.env.PGHOST || 'Not configured'}`);
 });
